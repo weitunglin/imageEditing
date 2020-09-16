@@ -1052,8 +1052,75 @@ bool TargaImage::Filter_Gaussian_N(unsigned int N)
 ///////////////////////////////////////////////////////////////////////////////
 bool TargaImage::Filter_Edge()
 {
-    ClearToBlack();
-    return false;
+    if (data == NULL) {
+        return false;
+    }
+
+    const double mask[5][5] = {
+        { -1/256.0, -4/256.0, -6/256.0, -4/256.0, -1/256.0 },
+        { -4/256.0, -16/256.0, -24/256.0, -16/256.0, -4/256.0 },
+        { -6/256.0, -24/256.0, 220/256.0, -24/256.0, -6/256.0 },
+        { -4/256.0, -16/256.0, -24/256.0, -16/256.0, -4/256.0 },
+        { -1/256.0, -4/256.0, -6/256.0, -4/256.0, -1/256.0 },
+    };
+
+    double rgb_max[3] = { 0.0 };
+    double rgb_min[3] = { 0.0 };
+    double range[3] = { 0.0 };
+    double temp_image[height][width][3];
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            size_t pos = (i * width + j) * 4;
+
+            double values[3] = { 0.0 };
+            for (int m = -2; m <= 2; m++) {
+                for (int n = -2; n <= 2; n++) {
+                    int r = i + m, c = j + n;
+                    if (r < 0) {
+                        r = -r;
+                    } else if (r >= height) {
+                        r = 2 * (height - 1) - r;
+                    }
+                    if (c < 0) {
+                        c = -c;
+                    } else if (c >= width) {
+                        c = 2 * (width - 1) - c;
+                    }
+
+                    for (int k = 0; k < 3; k++) {
+                        values[k] += *(data + (r * width + c) * 4 + k) * mask[m+2][n+2];
+                    }
+                }
+            }
+
+            for (int k = 0; k < 3; k++) {
+                temp_image[i][j][k] = Trim(values[k]);
+                if (temp_image[i][j][k] > rgb_max[k]) {
+                    rgb_max[k] = temp_image[i][j][k];
+                }
+                if (temp_image[i][j][k] < rgb_min[k]) {
+                    rgb_min[k] = temp_image[i][j][k];
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < 3; i++) {
+        range[i] = (double)rgb_max[i] - (double)rgb_min[i];
+    }
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            size_t pos = (i * width + j) * 4;
+
+            for (int k = 0; k < 3; k++) {
+                *(data + pos + k) = (temp_image[i][j][k] - rgb_min[k]) / range[k] * 255.0;
+            }
+        }
+    }
+
+    return true;
 }// Filter_Edge
 
 
@@ -1065,8 +1132,75 @@ bool TargaImage::Filter_Edge()
 ///////////////////////////////////////////////////////////////////////////////
 bool TargaImage::Filter_Enhance()
 {
-    ClearToBlack();
-    return false;
+    if (data == NULL) {
+        return false;
+    }
+
+        const double mask[5][5] = {
+        { -1/256.0, -4/256.0, -6/256.0, -4/256.0, -1/256.0 },
+        { -4/256.0, -16/256.0, -24/256.0, -16/256.0, -4/256.0 },
+        { -6/256.0, -24/256.0, 476/256.0, -24/256.0, -6/256.0 },
+        { -4/256.0, -16/256.0, -24/256.0, -16/256.0, -4/256.0 },
+        { -1/256.0, -4/256.0, -6/256.0, -4/256.0, -1/256.0 },
+    };
+
+    double rgb_max[3] = { 0.0 };
+    double rgb_min[3] = { 0.0 };
+    double range[3] = { 0.0 };
+    double temp_image[height][width][3];
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            size_t pos = (i * width + j) * 4;
+
+            double values[3] = { 0.0 };
+            for (int m = -2; m <= 2; m++) {
+                for (int n = -2; n <= 2; n++) {
+                    int r = i + m, c = j + n;
+                    if (r < 0) {
+                        r = -r;
+                    } else if (r >= height) {
+                        r = 2 * (height - 1) - r;
+                    }
+                    if (c < 0) {
+                        c = -c;
+                    } else if (c >= width) {
+                        c = 2 * (width - 1) - c;
+                    }
+
+                    for (int k = 0; k < 3; k++) {
+                        values[k] += *(data + (r * width + c) * 4 + k) * mask[m+2][n+2];
+                    }
+                }
+            }
+
+            for (int k = 0; k < 3; k++) {
+                temp_image[i][j][k] = Trim(values[k]);
+                if (temp_image[i][j][k] > rgb_max[k]) {
+                    rgb_max[k] = temp_image[i][j][k];
+                }
+                if (temp_image[i][j][k] < rgb_min[k]) {
+                    rgb_min[k] = temp_image[i][j][k];
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < 3; i++) {
+        range[i] = (double)rgb_max[i] - (double)rgb_min[i];
+    }
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            size_t pos = (i * width + j) * 4;
+
+            for (int k = 0; k < 3; k++) {
+                *(data + pos + k) = Trim((temp_image[i][j][k] - rgb_min[k]) / range[k] * 255.0);
+            }
+        }
+    }
+
+    return true;
 }// Filter_Enhance
 
 
