@@ -580,7 +580,7 @@ bool TargaImage::Dither_Cluster()
 uchar TargaImage::Trim(double v) const {
     if (v < 0) {
         return (uchar)0;
-    } else if (v > 256) {
+    } else if (v >= 256) {
         return (uchar)255;
     } else {
         return v;
@@ -1108,7 +1108,9 @@ bool TargaImage::Filter_Edge()
 
     for (int i = 0; i < 3; i++) {
         range[i] = (double)rgb_max[i] - (double)rgb_min[i];
+        cout << rgb_max[i] << " " << rgb_min[i] << "\n";
     }
+    cout << "---" << endl;
 
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
@@ -1227,10 +1229,83 @@ bool TargaImage::NPR_Paint()
 ///////////////////////////////////////////////////////////////////////////////
 bool TargaImage::Half_Size()
 {
-    ClearToBlack();
-    return false;
+    if (data == NULL) {
+        return false;
+    }
+
+    const double mask[3][3] = {
+        { 1/16.0, 1/8.0, 1/16.0 },
+        { 1/8.0, 1/4.0, 1/8.0 },
+        { 1/16.0, 1/8.0, 1/16.0 },
+    };
+
+    int new_height = height / 2;
+    int new_width = width / 2;
+    uchar *new_data = new uchar[new_height * new_width * 4];
+
+    for (int i = 0; i < new_height; i++) {
+        for (int j = 0; j < new_width; j++) {
+            size_t pos = (i * new_width + j) * 4;
+
+            int origin_i = 2 * i;
+            int origin_j = 2 * j;
+            // size_t origin_pos = (origin_i * width + origin_j) * 4;
+            double temp_rgb[3] = { 0.0 };
+            for (int m = -1; m <= 1; m++) {
+                for (int n = -1; n <= 1; n++) {
+                    int r = origin_i + m, c = origin_j + n;
+
+                    if (r < 0) {
+                        r = -r;
+                    } else if (r >= height) {
+                        r = 2 * (height - 1) - r;
+                    }
+
+                    if (c < 0) {
+                        c = -c;
+                    } else if (c >= width) {
+                        c = 2 * (width - 1) - c;
+                    }
+
+                    for (int k = 0; k < 3; k++) {
+                        temp_rgb[k] += *(data + (r * width + c) * 4 + k) * mask[m+1][n+1];
+                    }
+                }
+            }
+
+            for (int k = 0; k < 3; k++) {
+                *(new_data + pos + k) = temp_rgb[k];
+            }
+            *(new_data + pos + 3) = 255;
+        }
+
+    }
+    delete[] data;
+    data = new_data;
+    height = new_height;
+    width = new_width;
+
+    return true;
 }// Half_Size
 
+/**
+ * 
+ * 
+ * 
+*/
+void TargaImage::handleOverbound(int* r, int* c, int& h, int w) {
+    if (*r < 0) {
+        *r = -*r;
+    } else if (*r >= h) {
+        *r = 2 * (h - 1) - *r;
+    }
+
+    if (*c < 0) {
+        *c = -*c;
+    } else if (*c >= w) {
+        *c = 2 * (w - 1) - *c;
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -1239,8 +1314,124 @@ bool TargaImage::Half_Size()
 ///////////////////////////////////////////////////////////////////////////////
 bool TargaImage::Double_Size()
 {
-    ClearToBlack();
-    return false;
+    if (data == NULL) {
+        return false;
+    }
+
+    int new_height = height * 2;
+    int new_width = width * 2;
+    uchar *new_data = new uchar[new_height * new_width * 4];
+
+    const double both_odd[4][4] = {
+        { 1/64.0, 3/64.0, 3/64.0, 1/64.0 },
+        { 3/64.0, 9/64.0, 9/64.0, 3/64.0 },
+        { 3/64.0, 9/64.0, 9/64.0, 3/64.0 },
+        { 1/64.0, 3/64.0, 3/64.0, 1/64.0 }
+    };
+    const double both_even[3][3] = {
+        { 1/16.0, 1/8.0, 1/16.0 },
+        { 1/8.0, 1/4.0, 1/8.0 },
+        { 1/16.0, 1/8.0, 1/16.0 }
+    };
+    const double i_even_j_odd[4][3] = {
+        { 1/32.0, 2/32.0, 1/32.0 },
+        { 3/32.0, 6/32.0, 3/32.0 },
+        { 3/32.0, 6/32.0, 3/32.0 },
+        { 1/32.0, 2/32.0, 1/32.0 }
+    };
+    const double i_odd_j_even[3][4] = {
+        { 1/32.0, 3/32.0, 3/32.0, 1/32.0 },
+        { 2/32.0, 6/32.0, 6/32.0, 2/32.0 },
+        { 1/32.0, 3/32.0, 3/32.0, 1/32.0 }
+    };
+
+    for (int i = 0; i < new_height; i++) {
+        for (int j = 0; j < new_width; j++) {
+            size_t pos = (i * new_width + j) * 4;
+
+            double temp_rgb[3] = { 0.0 };
+            // i, j odd
+            if (i & 1 && j & 1) {
+                int origin_i = i / 2 - 1;
+                int origin_j = j / 2 - 1;
+
+                for (int m = 0; m < 4; m++) {
+                    for (int n = 0; n < 4; n++) {
+                        int r = origin_i + m;
+                        int c = origin_j + n;
+                        handleOverbound(&r, &c, height, width);
+
+                        for (int k = 0; k < 3; k++) {
+                            temp_rgb[k] += *(data + (r * width + c) * 4 + k) * both_odd[m][n];
+                        }
+                    }
+                }
+            }
+            // i, j even
+            else if (!(i & 1) && !(j & 1)) {
+                int origin_i = i / 2;
+                int origin_j = j / 2;
+                
+                for (int m = 0; m < 3; m++) {
+                    for (int n = 0; n < 3; n++) {
+                        int r = origin_i + m;
+                        int c = origin_j + n;
+                        handleOverbound(&r, &c, height, width);
+
+                        for (int k = 0; k < 3; k++) {
+                            temp_rgb[k] += *(data + (r * width + c) * 4 + k) * both_even[m][n];
+                        }
+                    }
+                }
+            }
+            // i odd, j even
+            else if (i & 1 && !(j & 1)) {
+                int origin_i = i / 2 - 1;
+                int origin_j = j / 2 - 1;
+
+                for (int m = 0; m < 3; m++) {
+                    for (int n = 0; n < 4; n++) {
+                        int r = origin_i + m;
+                        int c = origin_j + n;
+                        handleOverbound(&r, &c, height, width);
+
+                        for (int k = 0; k < 3; k++) {
+                            temp_rgb[k] += *(data + (r * width + c) * 4 + k) * i_odd_j_even[m][n];
+                        }
+                    }
+                }
+            }
+            // i even, j odd
+            else if (!(i & 1) && j & 1) {
+                int origin_i = i / 2 - 1;
+                int origin_j = j / 2 - 1;
+
+                for (int m = 0; m < 4; m++) {
+                    for (int n = 0; n < 3; n++) {
+                        int r = origin_i + m;
+                        int c = origin_j + n;
+                        handleOverbound(&r, &c, height, width);
+
+                        for (int k = 0; k < 3; k++) {
+                            temp_rgb[k] += *(data + (r * width + c) * 4 + k) * i_even_j_odd[m][n];
+                        }
+                    }
+                }
+            }
+
+            for (int k = 0; k < 3; k++) {
+                *(new_data + pos + k) = *(temp_rgb + k);
+            }
+            *(new_data + pos + 3) = 255;
+        }
+    }
+
+    delete[] data;
+    data = new_data;
+    height = new_height;
+    width = new_width;
+
+    return true;
 }// Double_Size
 
 ///////////////////////////////////////////////////////////////////////////////

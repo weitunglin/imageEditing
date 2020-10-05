@@ -1,6 +1,6 @@
 CC = gcc
 CXX = g++ -std=c++11
-DEBUG = -g
+DEBUG = 
 CXXFLAGS = $(shell fltk-config --use-gl --use-images --cxxflags ) -I.
 LDFLAGS = $(shell fltk-config --use-gl --use-images --ldflags )
 LDSTATIC = $(shell fltk-config --use-gl --use-images --ldstaticflags )
@@ -11,7 +11,7 @@ SRCS = main.cpp libtarga.c imageWidget.cpp scriptHandler.cpp targaImage.cpp
 
 .SUFFIXES: .o .cpp
 *.o: *.cpp
-	$(CXX) $(CXXFLAGS) $(DEBUG) -c $<
+	$(CXX) $(CXXFLAGS) $(DEBUG) -c $< -O3
 
 all: $(TARGET)
 	$(CXX) -o $(TARGET) $(OBJS) $(LDSTATIC)
@@ -22,3 +22,6 @@ $(TARGET): $(OBJS)
 clean:
 	rm -f *.o 2> /dev/null
 	rm -f $(TARGET) 2> /dev/null
+
+# run script command
+# make clean && make all && ./app

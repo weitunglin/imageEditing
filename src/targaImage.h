@@ -70,6 +70,8 @@ class TargaImage
         bool Resize(float scale);
         bool Rotate(float angleDegrees);
 
+        void handleOverbound(int* r, int* c, int& h, int w);
+
     private:
 	// helper function for format conversion
         void RGBA_To_RGB(unsigned char *rgba, unsigned char *rgb);
